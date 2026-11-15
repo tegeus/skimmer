@@ -1,0 +1,101 @@
+<title>Skimmer Flight Test</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single arcade cabinet column; the screen on top, a tuning desk underneath. Deliberately single dark theme. */
+:root {
+  --bg: #0c0907;
+  --panel: #17120e;
+  --line: #3a2e24;
+  --fg: #e8dccb;
+  --dim: #a8957f;
+  --cyan: #00d7d7;
+  --sand: #f0c98a;
+  --magenta: #ff00ff;
+  --display: "Silkscreen", "Courier New", monospace;
+  --body: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 960px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0; letter-spacing: 0.04em; text-wrap: balance; }
+h1 span { color: var(--cyan); }
+.tag { font-family: var(--display); font-size: 12px; color: var(--sand); letter-spacing: 0.08em; }
+.screen { position: relative; border: 4px solid var(--line); background: #000; box-shadow: 0 0 0 4px #000, 0 0 0 6px var(--line); }
+canvas { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; max-width: 100%; cursor: crosshair; touch-action: none; }
+.loading {
+  position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: 14px;
+  letter-spacing: 0.1em; color: var(--sand); background: #120d09;
+}
+.loading[hidden] { display: none; }
+.hud { display: flex; flex-wrap: wrap; gap: 6px 20px; font-family: var(--display); font-size: 12px; letter-spacing: 0.06em; color: var(--dim); font-variant-numeric: tabular-nums; }
+.hud b { color: var(--sand); font-weight: 400; }
+.help { color: var(--dim); line-height: 1.6; margin: 0; max-width: 70ch; }
+.help kbd { font-family: var(--body); color: var(--fg); border: 1px solid var(--line); padding: 0 5px; }
+.desk { background: var(--panel); border: 1px solid var(--line); padding: 16px; display: grid; gap: 16px; }
+.desk h2 { font-family: var(--display); font-weight: 400; font-size: 14px; margin: 0; color: var(--cyan); letter-spacing: 0.08em; }
+.modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.modes button, .actions button {
+  font-family: var(--display); font-size: 12px; letter-spacing: 0.06em; background: transparent; color: var(--fg);
+  border: 2px solid var(--line); padding: 8px 12px; cursor: pointer;
+}
+.modes button[aria-pressed="true"] { border-color: var(--cyan); color: #000; background: var(--cyan); }
+.modes button:hover, .actions button:hover { border-color: var(--cyan); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--sand); outline-offset: 2px; }
+.sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 24px; }
+.slider { display: grid; gap: 4px; min-width: 0; }
+.slider label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.slider output { color: var(--sand); font-variant-numeric: tabular-nums; }
+.slider small { color: var(--dim); font-size: 12px; }
+input[type=range] { width: 100%; accent-color: var(--magenta); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.actions .note { color: var(--dim); font-size: 12px; }
+@media (max-width: 480px) { h1 { font-size: 20px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>SKIM<span>MER</span></h1>
+    <div class="tag">FLIGHT TEST 05 · LIVE FIRE</div>
+  </header>
+
+  <div class="screen">
+    <canvas id="game" width="640" height="480" aria-label="Desert with dunes, oases and palm trees, and a hovercraft you steer with the mouse"></canvas>
+    <div class="loading" id="loading">GENERATING DESERT…</div>
+  </div>
+
+  <div class="hud" aria-live="off">
+    <div>SPEED <b id="hudSpeed">0.0</b></div>
+    <div>DRIFT <b id="hudDrift">0°</b></div>
+    <div>ALT <b id="hudAlt">0.0</b></div>
+    <div>OVER <b id="hudOver">SAND</b></div>
+    <div>TREES DOWN <b id="hudDown">0</b></div>
+    <div>MODE <b id="hudMode">HOLD</b></div>
+  </div>
+
+  <p class="help">The craft always swings round to face your pointer. In <b>Hold to thrust</b> mode, hold the left mouse button (or <kbd>Space</kbd>) to fire the engines, then let go and drift. Hold the <b>right mouse button</b> (or <kbd>F</kbd>) to fire the twin guns. A couple of hits will bring a palm down, and an acacia takes three. The desert has no edge: new ground is generated as you fly. An oasis sits just ahead of where you start. In <b>Follow pointer</b> mode the craft thrusts on its own, harder the further away the pointer is.</p>
+
+  <section class="desk" aria-label="Tuning">
+    <h2>TUNING DESK</h2>
+    <div class="modes" role="group" aria-label="Control mode">
+      <button id="modeHold" aria-pressed="true">Hold to thrust</button>
+      <button id="modeFollow" aria-pressed="false">Follow pointer</button>
+    </div>
+    <div class="sliders" id="sliders"></div>
+    <div class="actions">
+      <button id="resetBtn">Reset to defaults</button>
+      <button id="copyBtn">Copy settings</button>
+      <button id="homeBtn">Return craft to start</button>
+      <span class="note" id="copyNote">Found a feel you like? Copy the settings and paste them into the chat.</span>
+    </div>
+  </section>
+</div>
+
