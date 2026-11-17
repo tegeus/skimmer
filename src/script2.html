@@ -690,56 +690,218 @@ function terrainLib() {
 
   // ---------- Craft model: a delta-wing explorer after John's reference picture ----------
   // Local units: u forward, v sideways, w up. Built for the right-hand side, then mirrored.
-  const S = 1.25;
+  // ---------- Craft model: built from John's sketch (top, side, front and back views) ----------
+  // Local units: u forward, v sideways, w up. A wide square stern tapers to a cut-off nose;
+  // a raised spine runs the full length, flanked by sloping side panels carrying long fins.
+  // A glazed strip crosses the spine near the nose, three thrusters sit in the stern, guns at the nose corners.
+  const S = 1.3;
   const lerp3 = (a, b, t) => [mix(a[0], b[0], t), mix(a[1], b[1], t), mix(a[2], b[2], t)];
-  // A broad, flat, faceted wedge: much wider than it is long, a low raised spine, no separate wings.
-  const Vd = {
-    N: [0.40, 0, 0.015], RF: [0.12, 0, 0.10], RR: [-0.30, 0, 0.115],
-    S1: [0.04, 0.15, 0.075], S2: [-0.30, 0.19, 0.085],
-    WT: [-0.22, 0.62, 0.0], WR: [-0.32, 0.52, 0.0]
-  };
-  for (const k of ["RR", "S2", "WR"]) Vd[k + "b"] = [Vd[k][0], Vd[k][1], -0.02];
-  const HULL = [204, 208, 214], PANEL = [178, 182, 190], DARK = [78, 82, 92], GLASS = [26, 40, 66];
-  const FACES = [], DECALS = [];
   const mir = p => [p[0], -p[1], p[2]];
-  function face(names, col, spec, opt) { const p = names.map(n => Vd[n]); FACES.push({ p, col, spec, ...opt }); FACES.push({ p: p.map(mir), col, spec, ...opt }); }
-  face(["N", "RF", "S1"], HULL, 0.45);
-  face(["N", "S1", "WT"], PANEL, 0.4);
-  face(["RF", "RR", "S2", "S1"], HULL, 0.45);
-  face(["S1", "S2", "WR", "WT"], PANEL, 0.35);
-  face(["RR", "S2", "S2b", "RRb"], [44, 46, 52], 0.1, { rear: true });
-  face(["S2", "WR", "WRb", "S2b"], [52, 54, 60], 0.1, { rear: true });
-  {
-    const up = (p, d = 0.004) => [p[0], p[1], p[2] + d];
-    const canopy = [[0.09, 0, 0.104], [-0.07, 0, 0.122], [-0.06, 0.075, 0.098], [0.05, 0.055, 0.088]];
-    const onWing = (a, b) => [lerp3(Vd.S1, Vd.WT, a), lerp3(Vd.S1, Vd.WT, b), lerp3(Vd.S2, Vd.WR, b), lerp3(Vd.S2, Vd.WR, a)].map(p => up(p));
-    const intake = [lerp3(Vd.S1, Vd.S2, 0.35), lerp3(Vd.S1, Vd.S2, 0.85), lerp3(Vd.RF, Vd.RR, 0.85), lerp3(Vd.RF, Vd.RR, 0.35)].map(p => [p[0], p[1] * 0.75 + 0.03, p[2] + 0.004]);
-    for (const [d, col, sp] of [[canopy, GLASS, 1.3], [onWing(0.55, 0.62), DARK, 0.2], [onWing(0.86, 1.0), DARK, 0.2], [intake, [120, 124, 134], 0.3]]) { DECALS.push({ p: d, col, sp }); DECALS.push({ p: d.map(mir), col, sp }); }
+  const V = {
+    SR: [-0.5, 0.15, 0.17], SM: [0.12, 0.15, 0.152], SW: [0.30, 0.15, 0.118], SN: [0.5, 0.15, 0.07],
+    OR: [-0.5, 0.36, 0.075], OT: [0.05, 0.36, 0.08],
+    ORb: [-0.5, 0.36, 0.0], OTb: [0.05, 0.36, 0.0], SNb: [0.5, 0.15, 0.0]
+  };
+  const v = (n, m) => m ? mir(V[n]) : V[n];
+  const HULL = [196, 198, 200], PLATE = [184, 187, 192], WALL = [150, 152, 158], DARKM = [74, 78, 86], GLASS = [24, 36, 58], STERN = [58, 60, 66];
+  const FACES = [];
+  const HREF = [0, 0, 0.06];
+  function addFace(name, pts, col, spec, opt = {}) { FACES.push({ name, p: pts, col, spec, ref: opt.ref || HREF, kind: opt.kind || "hull", top: !!opt.top }); }
+  addFace("spine", [v("SR"), v("SM"), v("SM", 1), v("SR", 1)], HULL, 0.5, { top: true });
+  addFace("window", [v("SM"), v("SW"), v("SW", 1), v("SM", 1)], GLASS, 1.5);
+  addFace("noseDeck", [v("SW"), v("SN"), v("SN", 1), v("SW", 1)], HULL, 0.5, { top: true });
+  addFace("noseFace", [v("SN"), v("SNb"), v("SNb", 1), v("SN", 1)], WALL, 0.3);
+  addFace("stern", [v("OR"), v("SR"), v("SR", 1), v("OR", 1), v("ORb", 1), v("ORb")], STERN, 0.2, { kind: "stern" });
+  for (const m of [0, 1]) {
+    const sfx = m ? "L" : "R";
+    addFace("side" + sfx, [v("SR", m), v("OR", m), v("OT", m), v("SM", m)], PLATE, 0.4, { top: true });
+    addFace("chamfer" + sfx, [v("SM", m), v("OT", m), v("SN", m), v("SW", m)], PLATE, 0.4, { top: true });
+    addFace("wall" + sfx, [v("OR", m), v("ORb", m), v("OTb", m), v("OT", m)], WALL, 0.25);
+    addFace("taper" + sfx, [v("OT", m), v("OTb", m), v("SNb", m), v("SN", m)], WALL, 0.25);
   }
-  const RIGHT = ["N", "WT", "WR", "S2", "RR"].map(n => Vd[n]); const OUT = RIGHT.concat(RIGHT.slice().reverse().map(mir));
-  const NOZZLES = [[-0.31, 0.085, 0.05], [-0.31, -0.085, 0.05], [-0.315, 0.3, 0.03], [-0.315, -0.3, 0.03]];
-  const GUNS = [[0.06, 0.22, 0.05], [0.06, -0.22, 0.05]];
+  // fins: thin blades standing on the side panels, raked forward at the front
+  const FINS = [];
+  for (const sgn of [1, -1]) {
+    const a = 0.245 * sgn, b = 0.275 * sgn, ref = [-0.09, 0.26 * sgn, 0.15];
+    const P = (u, vv, w) => [u, vv, w];
+    const RBa = P(-0.30, a, 0.11), RTa = P(-0.30, a, 0.205), FTa = P(-0.02, a, 0.18), FBa = P(0.11, a, 0.11);
+    const RBb = P(-0.30, b, 0.11), RTb = P(-0.30, b, 0.205), FTb = P(-0.02, b, 0.18), FBb = P(0.11, b, 0.11);
+    const fin = [];
+    const f = (pts, col, spec) => fin.push({ p: pts, col, spec, ref });
+    f([RBa, RTa, FTa, FBa], DARKM, 0.6); f([RBb, RTb, FTb, FBb], DARKM, 0.6);
+    f([RTa, RTb, FTb, FTa], [92, 96, 104], 0.7); f([FTa, FTb, FBb, FBa], [92, 96, 104], 0.6); f([RBa, RBb, RTb, RTa], [60, 62, 68], 0.3);
+    FINS.push({ faces: fin, ref });
+  }
+  const OUT = [v("SN"), v("OT"), v("OR"), v("OR", 1), v("OT", 1), v("SN", 1)];
+  const THRUSTERS = [-0.13, 0, 0.13].map(vv => [-0.503, vv, 0.088]);
+  const NOZZLES = THRUSTERS;
+  const GUNS = [[0.53, 0.13, 0.035], [0.53, -0.13, 0.035]];
+
+  // the height of a face's surface at (u, v), so plates, seams and rivets sit on it
+  const faceByName = Object.fromEntries(FACES.map(f => [f.name, f]));
+  function onFace(name, u, vv, lift = 0.0025) {
+    const f = faceByName[name], p = f.p;
+    let nx = 0, ny = 0, nz = 0;
+    for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+    const c = p.reduce((s, q) => [s[0] + q[0] / p.length, s[1] + q[1] / p.length, s[2] + q[2] / p.length], [0, 0, 0]);
+    return [u, vv, c[2] - (nx * (u - c[0]) + ny * (vv - c[1])) / nz + lift];
+  }
+  // plates (slightly different shades), seams and rivet rows, each belonging to the face it sits on
+  const DETAIL = [];
+  const crng = mulberry(77);
+  const plate = (face, uv, col, sp = 0.45) => DETAIL.push({ face, type: "plate", p: uv.map(([u, vv]) => onFace(face, u, vv, 0.0015)), col, sp });
+  const seam = (face, uv) => DETAIL.push({ face, type: "seam", p: uv.map(([u, vv]) => onFace(face, u, vv)) });
+  const rivets = (face, uv, step = 0.042) => {
+    const pts = [];
+    for (let i = 0; i < uv.length - 1; i++) {
+      const [u0, v0] = uv[i], [u1, v1] = uv[i + 1], L = Math.hypot(u1 - u0, v1 - v0), n = Math.max(1, Math.round(L / step));
+      for (let k = 0; k <= n; k++) { if (i && !k) continue; pts.push(onFace(face, mix(u0, u1, k / n), mix(v0, v1, k / n), 0.003)); }
+    }
+    DETAIL.push({ face, type: "rivets", p: pts });
+  };
+  const shade = (c, k) => c.map(x => x * k);
+  { // spine: three plates, a centre seam and a stern access hatch
+    const xs = [-0.5, -0.27, -0.06, 0.12];
+    for (let i = 0; i < 3; i++) plate("spine", [[xs[i] + 0.004, -0.146], [xs[i + 1] - 0.004, -0.146], [xs[i + 1] - 0.004, 0.146], [xs[i] + 0.004, 0.146]], shade(HULL, 0.95 + crng() * 0.08));
+    for (const x of xs.slice(1)) { seam("spine", [[x, -0.15], [x, 0.15]]); rivets("spine", [[x - 0.016, -0.135], [x - 0.016, 0.135]]); rivets("spine", [[x + 0.016, -0.135], [x + 0.016, 0.135]]); }
+    seam("spine", [[-0.5, 0], [0.12, 0]]);
+    rivets("spine", [[-0.485, -0.135], [0.1, -0.135]]); rivets("spine", [[-0.485, 0.135], [0.1, 0.135]]);
+    const hatch = [[-0.45, -0.075], [-0.34, -0.075], [-0.34, 0.075], [-0.45, 0.075], [-0.45, -0.075]];
+    plate("spine", hatch.slice(0, 4), shade(HULL, 0.86), 0.6); seam("spine", hatch);
+    plate("spine", [[-0.43, -0.02], [-0.36, -0.02], [-0.36, 0.02], [-0.43, 0.02]], DARKM, 0.3);
+    // window frame bars across the glazing
+    for (const vv of [-0.05, 0.05]) DETAIL.push({ face: "window", type: "seam", p: [onFace("window", 0.12, vv), onFace("window", 0.30, vv)], col: "rgba(150,156,166,0.9)" });
+  }
+  { // nose deck and nose face
+    plate("noseDeck", [[0.305, -0.146], [0.495, -0.146], [0.495, 0.146], [0.305, 0.146]], shade(HULL, 0.93));
+    rivets("noseDeck", [[0.32, -0.135], [0.48, -0.135]]); rivets("noseDeck", [[0.32, 0.135], [0.48, 0.135]]); rivets("noseDeck", [[0.32, -0.12], [0.32, 0.12]]);
+    // the long window across the front, as drawn in the front view
+    DETAIL.push({ face: "noseFace", type: "plate", p: [[0.5025, -0.13, 0.058], [0.5025, 0.13, 0.058], [0.5025, 0.13, 0.03], [0.5025, -0.13, 0.03]], col: GLASS, sp: 1.4 });
+  }
+  for (const [m, side, chamfer] of [[1, "sideR", "chamferR"], [-1, "sideL", "chamferL"]]) {
+    const sv = vv => vv * m;
+    const xs = [-0.5, -0.3, -0.1, 0.05];
+    // plates between the transverse seams, and a strip along the outer edge
+    for (let i = 0; i < 3; i++) {
+      const outerV = 0.36;
+      plate(side, [[xs[i] + 0.004, sv(0.154)], [xs[i + 1] - 0.004, sv(0.154)], [Math.min(xs[i + 1], 0.05) - 0.004, sv(0.305)], [xs[i] + 0.004, sv(0.305)]], shade(PLATE, 0.94 + crng() * 0.1));
+      plate(side, [[xs[i] + 0.004, sv(0.313)], [xs[i + 1] - 0.004, sv(0.313)], [xs[i + 1] - 0.004, sv(outerV - 0.004)], [xs[i] + 0.004, sv(outerV - 0.004)]], shade(PLATE, 0.86 + crng() * 0.06));
+    }
+    for (const x of xs.slice(1, 3)) { seam(side, [[x, sv(0.15)], [x, sv(0.36)]]); rivets(side, [[x - 0.015, sv(0.165)], [x - 0.015, sv(0.345)]]); }
+    seam(side, [[-0.5, sv(0.309)], [0.05, sv(0.309)]]);
+    rivets(side, [[-0.49, sv(0.165)], [0.1, sv(0.165)]]); rivets(side, [[-0.49, sv(0.348)], [0.04, sv(0.348)]]);
+    // the crease to the nose, and the tapered panel ahead of it
+    seam(side, [[0.05, sv(0.36)], [0.12, sv(0.15)]]);
+    plate(chamfer, [[0.13, sv(0.155)], [0.075, sv(0.33)], [0.47, sv(0.158)], [0.30, sv(0.155)]], shade(PLATE, 0.97));
+    seam(chamfer, [[0.25, sv(0.15)], [0.22, sv(0.28)]]);
+    rivets(chamfer, [[0.08, sv(0.335)], [0.47, sv(0.165)]]); rivets(chamfer, [[0.14, sv(0.165)], [0.46, sv(0.165)]]);
+  }
+  // nav lights at the stern corners (red to port, green to starboard), white at the nose
+  const LIGHTS = [{ p: [-0.49, 0.35, 0.08], col: [80, 255, 120], blink: 1 }, { p: [-0.49, -0.35, 0.08], col: [255, 70, 60], blink: 1 }, { p: [0.505, 0.15, 0.06], col: [255, 250, 230], blink: 0 }, { p: [0.505, -0.15, 0.06], col: [255, 250, 230], blink: 0 }];
+
   const VIEW = [1 / Math.sqrt(3), 1 / Math.sqrt(3), 1 / Math.sqrt(3)];
   const HALF = (() => { const h = [SUN[0] + VIEW[0], SUN[1] + VIEW[1], SUN[2] + VIEW[2]], m = Math.hypot(...h); return h.map(x => x / m); })();
   let time = 0;
-  function xform(p, lift) {
-    const u = p[0] * S, v = p[1] * S, w = p[2] * S;
-    const cp = Math.cos(ship.pitch), sp = Math.sin(ship.pitch), cr = Math.cos(ship.roll), sr = Math.sin(ship.roll);
-    const u1 = u * cp - w * sp, w1 = u * sp + w * cp, v2 = v * cr - w1 * sr, w2 = v * sr + w1 * cr;
-    const c = Math.cos(ship.a), s = Math.sin(ship.a);
-    return [ship.x + u1 * c - v2 * s, ship.y + u1 * s + v2 * c, w2 + lift];
+  function xform(p, lift, pose = ship) {
+    const u = p[0] * S, vv = p[1] * S, w = p[2] * S;
+    const cp = Math.cos(pose.pitch), sp = Math.sin(pose.pitch), cr = Math.cos(pose.roll), sr = Math.sin(pose.roll);
+    const u1 = u * cp - w * sp, w1 = u * sp + w * cp, v2 = vv * cr - w1 * sr, w2 = vv * sr + w1 * cr;
+    const c = Math.cos(pose.a), s = Math.sin(pose.a);
+    return [pose.x + u1 * c - v2 * s, pose.y + u1 * s + v2 * c, w2 + lift];
   }
   function normalOf(P) {
     let nx = 0, ny = 0, nz = 0; // Newell's method copes with slightly non-flat panels
     for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
     const m = Math.hypot(nx, ny, nz) || 1; return [nx / m, ny / m, nz / m];
   }
-  function litColor(base, n, specK, flash) {
-    const sunK = ship.sun, diff = Math.max(0, n[0] * SUN[0] + n[1] * SUN[1] + n[2] * SUN[2]) * sunK, sky = 0.5 + 0.5 * n[2];
+  function litRGB(base, n, specK, sunK) {
+    const diff = Math.max(0, n[0] * SUN[0] + n[1] * SUN[1] + n[2] * SUN[2]) * sunK, sky = 0.5 + 0.5 * n[2];
     const spec = Math.pow(Math.max(0, n[0] * HALF[0] + n[1] * HALF[1] + n[2] * HALF[2]), 40) * specK * sunK, kd = 0.3 + 1.05 * diff;
-    let r = base[0] * kd + 10 * sky + 255 * spec, g = base[1] * kd + 14 * sky + 248 * spec, b = base[2] * kd + 22 * sky + 232 * spec;
+    return [Math.min(255, base[0] * kd + 10 * sky + 255 * spec), Math.min(255, base[1] * kd + 14 * sky + 248 * spec), Math.min(255, base[2] * kd + 22 * sky + 232 * spec)];
+  }
+  function litColor(base, n, specK, flash, sunK = ship.sun) {
+    let [r, g, b] = litRGB(base, n, specK, sunK);
     if (flash) { r = mix(r, 255, 0.5); g = mix(g, 80, 0.5); b = mix(b, 60, 0.5); }
-    return rgb(Math.min(255, r), Math.min(255, g), Math.min(255, b));
+    return rgb(r, g, b);
+  }
+  // Draws the craft into any 2D context: the game screen, or the close-up viewer with a bigger projection.
+  function renderCraft(g, pose, lift, pr, o) {
+    const zoom = o.zoom || 1, flash = o.flash, sunK = o.sun;
+    const W3 = p => xform(p, lift, pose);
+    const orient = (Pw, ref) => {
+      let n = normalOf(Pw);
+      const c = Pw.reduce((a, p) => [a[0] + p[0] / Pw.length, a[1] + p[1] / Pw.length, a[2] + p[2] / Pw.length], [0, 0, 0]), r = W3(ref);
+      if ((c[0] - r[0]) * n[0] + (c[1] - r[1]) * n[1] + (c[2] - r[2]) * n[2] < 0) n = n.map(x => -x);
+      return { n, c, vis: n[0] + n[1] + n[2] > 0.02 };
+    };
+    const path = pts => { g.beginPath(); pts.forEach((p, k) => k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); };
+    g.lineJoin = "round";
+    // underside, so the near edge reads as thickness
+    const uk = 0.55 + 0.45 * sunK;
+    path(OUT.map(p => pr(W3([p[0], p[1], -0.01])))); g.fillStyle = rgb(44 * uk, 46 * uk, 52 * uk); g.fill();
+    const visFaces = {};
+    let sternVisible = false;
+    for (const f of FACES) {
+      const Pw = f.p.map(W3), { n, vis } = orient(Pw, f.ref);
+      if (!vis) continue;
+      visFaces[f.name] = n;
+      if (f.kind === "stern") sternVisible = true;
+      path(Pw.map(pr)); g.fillStyle = litColor(f.col, n, f.spec, flash && f.kind !== "stern", sunK); g.fill();
+      g.strokeStyle = "rgba(20,22,28,0.35)"; g.lineWidth = 0.6 * zoom; g.stroke();
+    }
+    // plates, seams and rivets on the visible faces
+    for (const d of DETAIL) {
+      const n = visFaces[d.face]; if (!n) continue;
+      if (d.type === "plate") { path(d.p.map(p => pr(W3(p)))); g.fillStyle = litColor(d.col, n, d.sp, flash, sunK); g.fill(); }
+      else if (d.type === "seam") {
+        g.beginPath(); d.p.forEach((p, k) => { const s = pr(W3(p)); k ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); });
+        g.strokeStyle = d.col || "rgba(28,30,36,0.55)"; g.lineWidth = (d.col ? 1.2 : 0.7) * zoom; g.stroke();
+      } else if (d.type === "rivets" && zoom * S > 0.9) {
+        const [r, gg, b] = litRGB([226, 228, 232], n, 0.9, sunK), rad = Math.max(0.45, 0.42 * zoom);
+        for (const p of d.p) {
+          const s = pr(W3(p));
+          g.fillStyle = "rgba(20,22,28,0.55)"; g.beginPath(); g.arc(s[0] + rad * 0.35, s[1] + rad * 0.45, rad, 0, 7); g.fill();
+          g.fillStyle = rgb(r, gg, b); g.beginPath(); g.arc(s[0], s[1], rad * 0.8, 0, 7); g.fill();
+        }
+      }
+    }
+    // fins, far one first
+    const fins = FINS.map(fn => ({ fn, d: (r => r[0] + r[1] + r[2])(W3(fn.ref)) })).sort((a, b) => a.d - b.d);
+    for (const { fn } of fins) for (const f of fn.faces) {
+      const Pw = f.p.map(W3), { n, vis } = orient(Pw, f.ref);
+      if (!vis) continue;
+      path(Pw.map(pr)); g.fillStyle = litColor(f.col, n, f.spec, flash, sunK); g.fill();
+      g.strokeStyle = "rgba(14,16,20,0.5)"; g.lineWidth = 0.6 * zoom; g.stroke();
+    }
+    // gun barrels at the nose corners
+    for (const gp of GUNS) {
+      const a = pr(W3([0.47, gp[1], gp[2]])), b = pr(W3([gp[0] + 0.04, gp[1], gp[2]]));
+      g.lineCap = "round"; g.strokeStyle = "#2a2c32"; g.lineWidth = 2.2 * zoom; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+      g.strokeStyle = "rgba(200,205,215,0.5)"; g.lineWidth = 0.7 * zoom; g.beginPath(); g.moveTo(a[0], a[1] - 0.5 * zoom); g.lineTo(b[0], b[1] - 0.5 * zoom); g.stroke();
+    }
+    // three round thrusters in the stern
+    const glowR = (o.glow || 0);
+    for (const t of THRUSTERS) {
+      const ring = (r, du = 0) => Array.from({ length: 16 }, (_, k) => { const a = k / 16 * Math.PI * 2; return pr(W3([t[0] - du, t[1] + Math.cos(a) * r, t[2] + Math.sin(a) * r * 0.85])); });
+      const c = pr(W3(t));
+      if (sternVisible) {
+        path(ring(0.05)); g.fillStyle = litColor([120, 124, 132], visFaces.stern || [0, 0, 1], 0.6, false, sunK); g.fill();
+        path(ring(0.036, 0.004)); g.fillStyle = "#121318"; g.fill();
+      }
+      const r = (3 + glowR * 9 * (0.85 + Math.random() * 0.3)) * zoom, gr = g.createRadialGradient(c[0], c[1], 0, c[0], c[1], r);
+      gr.addColorStop(0, `rgba(225,240,255,${(sternVisible ? 0.25 : 0.08) + glowR * 0.75})`); gr.addColorStop(0.4, `rgba(110,170,255,${glowR * 0.5})`); gr.addColorStop(1, "rgba(80,140,255,0)");
+      g.globalCompositeOperation = "lighter"; g.fillStyle = gr; g.beginPath(); g.arc(c[0], c[1], r, 0, 7); g.fill(); g.globalCompositeOperation = "source-over";
+    }
+    // navigation lights
+    g.globalCompositeOperation = "lighter";
+    for (const L of LIGHTS) {
+      const on = !L.blink || (Math.floor(o.time * 1.2 + (L.p[1] > 0 ? 0.5 : 0)) % 2 === 0);
+      if (!on) continue;
+      const c = pr(W3(L.p)), r = (L.blink ? 4 : 3) * zoom, gr = g.createRadialGradient(c[0], c[1], 0, c[0], c[1], r);
+      gr.addColorStop(0, rgb(...L.col, 0.95)); gr.addColorStop(1, rgb(...L.col, 0));
+      g.fillStyle = gr; g.beginPath(); g.arc(c[0], c[1], r, 0, 7); g.fill();
+    }
+    g.globalCompositeOperation = "source-over";
   }
   function drawShip() {
     const lift = ship.z + (ship.air ? 0 : Math.sin(time * 5) * 0.015);
@@ -750,36 +912,34 @@ function terrainLib() {
     ctx.fillStyle = "#3a2214"; ctx.beginPath();
     O.forEach((p, k) => { const gz = surfaceAt(p[0], p[1]), hz = p[2] - gz, s = proj(p[0] + SHX * hz, p[1] + SHY * hz, gz * PX); k ? ctx.lineTo(s[0], s[1]) : ctx.moveTo(s[0], s[1]); });
     ctx.closePath(); ctx.fill(); ctx.restore();
-    const flash = ship.bump > 0, ctr = xform([0, 0, 0.05], lift), draws = [];
-    let rearVisible = false;
-    for (const f of FACES) {
-      const Pw = f.p.map(p => xform(p, lift)); let n = normalOf(Pw);
-      const c = Pw.reduce((a, p) => [a[0] + p[0] / Pw.length, a[1] + p[1] / Pw.length, a[2] + p[2] / Pw.length], [0, 0, 0]);
-      if (f.rear) { if ((c[0] - ctr[0]) * n[0] + (c[1] - ctr[1]) * n[1] < 0) n = n.map(x => -x); if (n[0] + n[1] + n[2] <= 0) continue; rearVisible = true; }
-      else if (n[2] < 0) n = n.map(x => -x);
-      draws.push({ d: c[0] + c[1] + c[2], pts: Pw.map(pr), col: litColor(f.col, n, f.spec, flash && !f.rear) });
-    }
-    draws.sort((p, q) => p.d - q.d);
-    const nozzles = NOZZLES.map(p => pr(xform(p, lift)));
-    const glow = () => { for (const nz of nozzles) {
-      const r = 2 + ship.glow * 6 * (0.85 + Math.random() * 0.3), gr = ctx.createRadialGradient(nz[0], nz[1], 0, nz[0], nz[1], r);
-      gr.addColorStop(0, `rgba(225,240,255,${0.1 + ship.glow * 0.8})`); gr.addColorStop(0.4, `rgba(110,170,255,${ship.glow * 0.5})`); gr.addColorStop(1, "rgba(80,140,255,0)");
-      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(nz[0], nz[1], r, 0, 7); ctx.fill(); } };
-    if (!rearVisible) glow();
-    // underside first: its near edge shows as the craft's thickness
-    const U = OUT.map(p => pr(xform([p[0], p[1], -0.02], lift))), uk = 0.55 + 0.45 * ship.sun;
-    ctx.beginPath(); U.forEach((p, k) => k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fillStyle = rgb(46 * uk, 48 * uk, 56 * uk); ctx.fill();
-    ctx.lineJoin = "round";
-    for (const d of draws) {
-      ctx.beginPath(); d.pts.forEach((p, k) => k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
-      ctx.fillStyle = d.col; ctx.fill(); ctx.strokeStyle = "rgba(30,34,44,0.16)"; ctx.lineWidth = 0.6; ctx.stroke();
-    }
-    for (const dc of DECALS) {
-      const Pw = dc.p.map(p => xform(p, lift)); let n = normalOf(Pw); if (n[2] < 0) n = n.map(x => -x);
-      ctx.beginPath(); Pw.forEach((p, k) => { const s = pr(p); k ? ctx.lineTo(s[0], s[1]) : ctx.moveTo(s[0], s[1]); }); ctx.closePath();
-      ctx.fillStyle = litColor(dc.col, n, dc.sp, flash); ctx.fill();
-    }
-    if (rearVisible) { for (const nz of nozzles) { ctx.fillStyle = "#14161c"; ctx.beginPath(); ctx.ellipse(nz[0], nz[1], 2.4, 1.8, 0, 0, 7); ctx.fill(); } glow(); }
+    renderCraft(ctx, ship, lift, pr, { zoom: 1, flash: ship.bump > 0, sun: ship.sun, glow: ship.glow, time });
+  }
+  // ---------- Close-up viewer: the craft turning slowly on a hangar floor ----------
+  const insp = document.getElementById("inspect"), ictx = insp ? insp.getContext("2d") : null;
+  const ipose = { x: 0, y: 0, a: 0, pitch: 0, roll: 0 };
+  let iAngle = 0.6, iDrag = null;
+  if (insp) {
+    insp.addEventListener("pointerdown", e => { iDrag = { x: e.clientX, a: iAngle }; try { insp.setPointerCapture(e.pointerId); } catch (_) {} });
+    insp.addEventListener("pointermove", e => { if (iDrag) iAngle = iDrag.a + (e.clientX - iDrag.x) * 0.012; });
+    insp.addEventListener("pointerup", () => { iDrag = null; });
+    insp.addEventListener("pointercancel", () => { iDrag = null; });
+  }
+  function drawInspector(dt) {
+    if (!ictx) return;
+    const IW = insp.width, IH = insp.height, Z = 4.2;
+    if (!iDrag) iAngle += dt * 0.35;
+    ipose.a = iAngle;
+    const g = ictx;
+    const bg = g.createLinearGradient(0, 0, 0, IH); bg.addColorStop(0, "#2a241f"); bg.addColorStop(1, "#14110e");
+    g.fillStyle = bg; g.fillRect(0, 0, IW, IH);
+    const cx = IW / 2, cy = IH / 2 + 26;
+    const pr = p => [cx + (p[0] - p[1]) * TW / 2 * Z, cy + (p[0] + p[1]) * TH / 2 * Z - p[2] * PX * Z];
+    // floor grid and a soft shadow under the craft
+    g.strokeStyle = "rgba(255,230,200,0.06)"; g.lineWidth = 1;
+    for (let k = -3; k <= 3; k++) { let a = pr([k * 0.5, -1.6, 0]), b = pr([k * 0.5, 1.6, 0]); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); a = pr([-1.6, k * 0.5, 0]); b = pr([1.6, k * 0.5, 0]); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+    g.save(); g.filter = "blur(10px)"; g.globalAlpha = 0.55; g.fillStyle = "#000";
+    g.beginPath(); OUT.forEach((p, k) => { const w = xform(p, 0, ipose), s = pr([w[0] + 0.05, w[1] - 0.02, 0]); k ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); }); g.closePath(); g.fill(); g.restore();
+    renderCraft(g, ipose, 0.22 + Math.sin(time * 1.6) * 0.012, pr, { zoom: Z, flash: false, sun: 1, glow: 0.15 + 0.1 * Math.sin(time * 3), time });
   }
 
   // ---------- Drawing ----------
@@ -895,7 +1055,7 @@ function terrainLib() {
     if (ready) {
       acc += el; time += el;
       while (acc >= DT) { step(DT); acc -= DT; }
-      stepParticles(el); setCam(); draw();
+      stepParticles(el); setCam(); draw(); drawInspector(el);
       hudT += el; if (hudT > 0.1) { hud(); hudT = 0; }
       window.__aim = () => { const t = near.filter(t => !t.dead).sort((a, b) => Math.hypot(a.x - ship.x, a.y - ship.y) - Math.hypot(b.x - ship.x, b.y - ship.y))[0]; return t ? [t.ix + ox, t.iy + oy - 6] : null; };
       window.__stats = { gun: gunStats, down: treesDown, bolts: bolts.length, chunks: chunks.size, particles: P.length, trees: near.length, x: ship.x, y: ship.y, workers: workerOK };
